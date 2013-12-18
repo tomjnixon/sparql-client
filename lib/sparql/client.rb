@@ -345,7 +345,7 @@ module SPARQL
         when json.has_key?('results')
           solutions = json['results']['bindings'].map do |row|
             row = row.inject({}) do |cols, (name, value)|
-              cols.merge(name.to_sym => parse_json_value(value))
+              cols.merge(name.to_sym => parse_json_value(value, nodes))
             end
             RDF::Query::Solution.new(row)
           end
@@ -406,15 +406,18 @@ module SPARQL
       tsv.each do |row|
         solution = RDF::Query::Solution.new
         row.each_with_index do |v, i|
-          term = RDF::NTriples.unserialize(v) || case v
-          when /^\d+\.\d*[eE][+-]?[0-9]+$/  then RDF::Literal::Double.new(v)
-          when /^\d*\.\d+[eE][+-]?[0-9]+$/  then RDF::Literal::Double.new(v)
-          when /^\d*\.\d+$/                 then RDF::Literal::Decimal.new(v)
-          when /^\d+$/                      then RDF::Literal::Integer.new(v)
-          else
-            RDF::Literal(v)
+          if !v.empty?
+            term = RDF::NTriples.unserialize(v) || case v
+            when /^\d+\.\d*[eE][+-]?[0-9]+$/  then RDF::Literal::Double.new(v)
+            when /^\d*\.\d+[eE][+-]?[0-9]+$/  then RDF::Literal::Double.new(v)
+            when /^\d*\.\d+$/                 then RDF::Literal::Decimal.new(v)
+            when /^\d+$/                      then RDF::Literal::Integer.new(v)
+            else
+              RDF::Literal(v)
+            end
+            nodes[term.id] = term if term.is_a? RDF::Node
+            solution[vars[i].to_sym] = term
           end
-          solution[vars[i].to_sym] = term
         end
         solutions << solution
       end
